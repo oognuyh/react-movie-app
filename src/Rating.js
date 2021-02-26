@@ -12,6 +12,7 @@ const Rating = ({ rating, ...rest }) => {
 
 const Wrapper = styled.div`
   display: flex;
+  margin: 5px 0;
 `;
 
 const Stars = styled.div`
