@@ -16,7 +16,7 @@ const Movie = ({ id, rating, genres, title, summary, poster }) => {
               return <Genre key={genre}>{genre}</Genre>;
             })}
           </Genres>
-          <Summary>{summary.length > 380 ? summary.slice(0, 380) + " ..." : summary}</Summary>
+          <Summary>{summary}</Summary>
           <DetailsButton>
             <h3>Show details</h3>
           </DetailsButton>
@@ -99,6 +99,8 @@ const DetailsButton = styled.button`
   margin-top: 10px;
   background-color: yellow;
   border: none;
+  outline: none;
+  cursor: pointer;
 
   :hover {
     opacity: 0.8;
