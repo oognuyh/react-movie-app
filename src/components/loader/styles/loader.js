@@ -9,15 +9,15 @@ const spin = keyframes`
     }
 `;
 
-const Wrapper = styled.div`
+export const Container = styled.div`
   display: flex;
-  height: ${(proprs) => proprs.height || "100vh"};
+  height: ${(props) => props.height || "100vh"};
   width: 100vw;
   justify-content: center;
   align-items: center;
 `;
 
-const ProgressBar = styled.div`
+export const ProgressBar = styled.div`
   width: 50px;
   height: 50px;
   border: 6px solid white;
@@ -27,13 +27,3 @@ const ProgressBar = styled.div`
 
   animation: ${spin} 800ms infinite linear;
 `;
-
-const Loader = ({ height }) => {
-  return (
-    <Wrapper height={height}>
-      <ProgressBar />
-    </Wrapper>
-  );
-};
-
-export default Loader;

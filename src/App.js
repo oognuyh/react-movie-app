@@ -1,172 +1,93 @@
+import React, { useState, useEffect, useReducer, useCallback } from "react";
 import axios from "axios";
-import React, { Fragment, useState, useEffect } from "react";
-import InfiniteScroll from "react-infinite-scroll-component";
-import SearchIcon from "@material-ui/icons/Search";
-import styled from "styled-components";
-import Loader from "./Loader";
-import Movie from "./Movie";
+import { Card, Header, Modal, Loader } from "./components";
+import { movieReducer, modalReducer } from "./reducer/reducer";
+import { ACTIONS } from "./common/action";
 
-class App extends React.Component {
-  state = {
-    isLoading: true,
-    isFiltering: false,
-    filteredMovies: [],
-    movies: [],
-    hasMore: true,
-    pageNo: 1,
-    userInput: "",
-  };
+const App = () => {
+  const [state, dispatch] = useReducer(movieReducer, { loading: false, movies: null, error: null });
+  const [modal, modalDispatch] = useReducer(modalReducer, { movie: null, isOpen: false });
+  const [queryTerm, setQueryTerm] = useState("");
 
-  movieCount = 0;
-  limit = 20;
+  const fetchMovies = useCallback(async ({ queryTerm, dispatch }) => {
+    dispatch({ type: ACTIONS.LOADING });
 
-  init = async () => {
-    const {
-      data: {
-        data: { movies, movie_count },
-      },
-    } = await axios.get(`https://yts-proxy.now.sh/list_movies.json?sort_by=rating&page=${this.state.pageNo}`);
+    await axios
+      .get(`https://yts-proxy.now.sh/list_movies.json?sort_by=rating&query_term=${queryTerm || ""}`)
+      .then((response) => {
+        dispatch({ type: ACTIONS.SUCCESS, payload: response.data.data.movies });
+      })
+      .catch((error) => {
+        dispatch({ type: ACTIONS.ERROR, error: error });
+      });
+  });
 
-    this.movieCount = movie_count;
-    this.setState({ movies, isLoading: false, pageNo: this.state.pageNo + 1 });
-  };
+  useEffect(() => {
+    fetchMovies({ dispatch: dispatch, queryTerm: queryTerm });
+  }, [queryTerm]);
 
-  getMovies = async () => {
-    if (this.state.movies.length >= this.movieCount) {
-      this.setState({ hasMore: false });
-      return;
-    }
+  const { loading, error, movies } = state;
 
-    const {
-      data: {
-        data: { movies },
-      },
-    } = await axios.get(`https://yts-proxy.now.sh/list_movies.json?sort_by=rating&page=${this.state.pageNo}`);
-
-    this.setState({ movies: this.state.movies.concat(movies), pageNo: this.state.pageNo + 1 });
-  };
-
-  renderMovies = ({ movies }) => {
-    return movies.map((movie) => {
-      return (
-        <Movie
-          key={movie.id}
-          id={movie.id}
-          rating={movie.rating}
-          genres={movie.genres}
-          title={movie.title}
-          summary={movie.summary}
-          poster={movie.medium_cover_image}
-        />
-      );
-    });
-  };
-
-  handleChange = (e) => {
-    this.setState({ userInput: e.target.value });
-
-    if (this.state.userInput.length < 2) {
-      this.setState({ isFiltering: false, isLoading: false });
-    }
-  };
-
-  handleSubmit = (e) => {
-    e.preventDefault();
-    this.setState({ isLoading: true });
-    this.searchMovies();
-  };
-
-  searchMovies = async () => {
-    const { userInput } = this.state;
-
-    if (userInput.length > 0) {
-      this.setState({ isFiltering: true });
-
-      const {
-        data: {
-          data: { movies },
-        },
-      } = await axios.get(`https://yts-proxy.now.sh/list_movies.json?query_term=${userInput}`);
-
-      this.setState({ isLoading: false, isFiltering: true, filteredMovies: movies });
-    } else {
-      this.setState({ isFiltering: false, isLoading: false });
-    }
-  };
-
-  componentDidMount() {
-    this.init();
-  }
-
-  render() {
-    const { isLoading, movies, hasMore, isFiltering, filteredMovies } = this.state;
-
-    return (
-      <Fragment>
-        <Header>
-          <SearchIcon />
-          <form onSubmit={this.handleSubmit}>
-            <input
-              type="text"
-              placeholder="Enter movie title, actor name or director name."
-              value={this.state.userInput}
-              onChange={this.handleChange}
-            />
-          </form>
-        </Header>
-        {isLoading ? (
-          <Loader />
-        ) : isFiltering ? (
-          <Grid>{this.renderMovies({ movies: filteredMovies })}</Grid>
-        ) : (
-          <InfiniteScroll dataLength={movies.length} next={this.getMovies} hasMore={hasMore} loader={<Loader height={"100px"} />}>
-            <Grid>{this.renderMovies({ movies })}</Grid>
-          </InfiniteScroll>
-        )}
-      </Fragment>
-    );
-  }
-}
-
-const Grid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-auto-rows: auto;
-  grid-gap: 10px;
-  justify-content: center;
-  margin: 10px;
-
-  @media only screen and (max-width: 1648px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media only screen and (max-width: 848px) {
-    grid-template-columns: repeat(1, 1fr);
-  }
-`;
-
-const Header = styled.div`
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: center;
-  background-color: black;
-  padding: 20px 0;
-  color: white;
-
-  input {
-    height: 100%;
-    width: 60vw;
-    padding: 10px;
-    border: none;
-    background-color: none;
-    border-radius: 6px;
-    outline: none;
-  }
-
-  .MuiSvgIcon-root {
-    margin-right: 15px;
-  }
-`;
+  return (
+    <>
+      {modal.isOpen && (
+        <Modal.Container>
+          <Modal>
+            <Modal.CloseButton onClick={() => modalDispatch({ type: ACTIONS.HIDE })} />
+            <Modal.Image src={modal.movie.background_image} alt={modal.movie.title} />
+            <Modal.Content>
+              <Modal.Title>{modal.movie.title}</Modal.Title>
+              <Modal.MetaWrapper>
+                <Modal.Year>{modal.movie.year}</Modal.Year>
+                <Modal.Runtime>{modal.movie.runtime} min</Modal.Runtime>
+              </Modal.MetaWrapper>
+              <Modal.Description>{modal.movie.description_full}</Modal.Description>
+            </Modal.Content>
+            <Modal.DownloadWrapper>
+              {modal.movie.torrents.map((torrent) => {
+                return (
+                  <Modal.DownloadButton key={torrent.hash} href={torrent.url}>
+                    {torrent.quality}
+                  </Modal.DownloadButton>
+                );
+              })}
+            </Modal.DownloadWrapper>
+          </Modal>
+        </Modal.Container>
+      )}
+      <Header>
+        <Header.SearchIcon style={{ color: "white", paddingRight: "8px" }} />
+        <Header.Input onChange={(event) => setQueryTerm(event.target.value)} value={queryTerm} />
+      </Header>
+      {loading ? (
+        <Loader />
+      ) : (
+        movies && (
+          <Card.Container>
+            {movies.map((movie) => {
+              return (
+                <Card key={movie.id}>
+                  <Card.Image src={movie.medium_cover_image} />
+                  <Card.Content>
+                    <Card.Title>{movie.title}</Card.Title>
+                    <Card.Rating value={movie.rating / 2} precision={0.1} style={{ color: "yellow" }} />
+                    <Card.GenreContainer>
+                      {movie.genres.map((genre) => {
+                        return <Card.Genre key={`${movie.id}-${genre}`}>{genre}</Card.Genre>;
+                      })}
+                    </Card.GenreContainer>
+                    <Card.Summary>{movie.summary}</Card.Summary>
+                    <Card.DetailsButton onClick={() => modalDispatch({ type: ACTIONS.SHOW, movie: movie })}>See Details</Card.DetailsButton>
+                  </Card.Content>
+                </Card>
+              );
+            })}
+          </Card.Container>
+        )
+      )}
+      {error && <h1>Error occurs</h1>}
+    </>
+  );
+};
 
 export default App;
